@@ -27,7 +27,9 @@ export default function Modal(props: OpenProps) {
         setTargetSheet(targetSheetRef.current);
       }, 0);
     }
+    console.log('CCC', bottomSheet?.current, targetSheet?.current);
   }, [open]);
+
   useEffect(() => {
     let startY = 0; // info: 터치한 곳의 y값 (약간의 오차가 있지만 변하지 않음)
 
@@ -75,10 +77,38 @@ export default function Modal(props: OpenProps) {
 
   const [filteredAddress, setFilteredAddress] = useState<string[]>(Addresses.slice(0, PAGEPERCOUNT));
   const [options, setOptions] = useState<string[]>([]);
+  const [page, setPage] = useState<number>(0);
+
+  const handleObserver = (entries: IntersectionObserverEntry[]) => {
+    const target = entries[0];
+    if (target.isIntersecting) {
+      setPage((prevPage) => prevPage + 1);
+    }
+  };
 
   useEffect(() => {
-    setOptions(filteredAddress)
-  }, [filteredAddress])
+    const observer = new IntersectionObserver(handleObserver, {
+      threshold: 0,
+    });
+    const observerTarget = document.getElementById("observer");
+    if (observerTarget) {
+      observer.observe(observerTarget);
+    }
+  }, []);
+
+  // useEffect(() => {
+  //   setOptions(filteredAddress);
+  // }, [filteredAddress])
+
+  const handleKeywordChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const resultAddresses = Addresses.filter((address) => {
+      if (address.includes(event.target.value)) {
+        return address;
+      }
+    })
+    setFilteredAddress(resultAddresses);
+    setOptions(resultAddresses.slice(0, PAGEPERCOUNT));
+  }
 
   return (
     <Transition.Root show={open} as={Fragment}>
@@ -123,7 +153,7 @@ export default function Modal(props: OpenProps) {
                     className="block w-full bg-thang-f5 p-3.75 rounded-3.5 text-black placeholder:text-thang-9"
                     placeholder="예) 서울시 영등포구 여의도동"
                     onChange={(event) => {
-                      console.log('==== Query Changed ====');
+                      handleKeywordChange(event);
                     }}
                   />
                 </div>
@@ -148,11 +178,12 @@ export default function Modal(props: OpenProps) {
                           </div>
                         );
                       })}
+                      <div id="observer" style={{ height: '10px' }} />
                     </InfiniteScroll>
                   ) : (
                     <div className="bg-thang-f9 w-full h-full flex items-center justify-center">
                       <p className="text-thang-9 pb-[120px]">
-                        "검색창에 주소를 입력해주세요"
+                        검색창에 주소를 입력해주세요
                       </p>
                     </div>
                   )}
