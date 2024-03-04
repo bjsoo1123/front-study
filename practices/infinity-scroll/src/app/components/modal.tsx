@@ -1,14 +1,12 @@
 import { Addresses } from "@/constants/202004";
 import { Dialog, Transition } from "@headlessui/react";
-import { Fragment, useEffect, useRef, useState } from "react";
+import React, { Fragment, useEffect, useRef, useState } from "react";
 import InfiniteScroll from "./infiniteScroll";
 
 interface OpenProps {
   open: boolean;
   setOpen: React.Dispatch<React.SetStateAction<boolean>>;
 }
-
-const PAGEPERCOUNT = 30;
 
 // Info: 사용하면 좋은 함수 "debounce", "union"
 export default function Modal(props: OpenProps) {
@@ -73,12 +71,47 @@ export default function Modal(props: OpenProps) {
   }, [bottomSheet]);
   // Don't touch this code (END)
 
-  const [filteredAddress, setFilteredAddress] = useState<string[]>(Addresses.slice(0, PAGEPERCOUNT));
-  const [options, setOptions] = useState<string[]>([]);
+  //
+  const [searchValue, setSearchValue] = useState<string>('');
+  const [pageCount, setPageCount] = useState<number>(30);
+  const [addresses, setAddresses] = useState<string[]>([]);
 
   useEffect(() => {
-    setOptions(filteredAddress)
-  }, [filteredAddress])
+    if (open) {
+      setSearchValue('');
+      setPageCount(30);
+      setAddresses([]);
+    }
+  }, [open]);
+
+  const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!event.target.value) {
+      setAddresses([]);
+      return;
+    }
+    const array = Addresses.filter((address) => address.indexOf(event.target.value) !== -1);
+    setAddresses(array.slice(0, pageCount));
+    setSearchValue(event.target.value);
+  };
+
+  const debounce = (func: () => void, timeout = 300) => {
+    let timer: NodeJS.Timeout;
+    return () => {
+      if (timer) {
+        clearTimeout(timer);
+      }
+      timer = setTimeout(() => {
+        func();
+      }, timeout);
+    };
+  }
+
+  const handleNextSearch = debounce(() => {
+    const array = Addresses.filter((address) => address.indexOf(searchValue) !== -1);
+    const newArray = array.slice(pageCount + 1, pageCount + 30);
+    setAddresses(addresses.concat(newArray));
+    setPageCount(pageCount + 30);
+  });
 
   return (
     <Transition.Root show={open} as={Fragment}>
@@ -122,22 +155,19 @@ export default function Modal(props: OpenProps) {
                     type="text"
                     className="block w-full bg-thang-f5 p-3.75 rounded-3.5 text-black placeholder:text-thang-9"
                     placeholder="예) 서울시 영등포구 여의도동"
-                    onChange={(event) => {
-                      console.log('==== Query Changed ====');
-                    }}
+                    onChange={handleInputChange}
                   />
                 </div>
                 <div
                   className="overflow-scroll"
                   style={{
                     height: "calc(90% - 100px - 16px)",
-                    transition: "height 0.2s ease-out",
+                    transition: "height 0.2s ease-out"
                   }}
                 >
-                  {filteredAddress.length > 0 ? (
-                    <InfiniteScroll
-                    >
-                      {options.map((option: string, index: number) => {
+                  {addresses?.length > 0 ? (
+                    <InfiniteScroll onNextSearch={handleNextSearch}>
+                      {addresses.map((option: string, index: number) => {
                         return (
                           <div key={option}>
                             <div className="relative cursor-default select-none py-3.75 pl-8.75 pr-5 flex justify-between">
@@ -152,6 +182,7 @@ export default function Modal(props: OpenProps) {
                   ) : (
                     <div className="bg-thang-f9 w-full h-full flex items-center justify-center">
                       <p className="text-thang-9 pb-[120px]">
+                        {/* eslint-disable-next-line react/no-unescaped-entities */}
                         "검색창에 주소를 입력해주세요"
                       </p>
                     </div>
