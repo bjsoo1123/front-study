@@ -327,6 +327,48 @@
 - 이름이 반드시 `use`로 시작하는 함수를 만들어야 한다.
 - `react-hooks/rules-of-hooks`가 지적하는 바는 훅은 "함수형 컴포넌트 내부" 또는 "사용자 정의 훅 내부"에서만 사용할 수 있기 때문에 `use`라는 이름으로 짓지 않은 함수 안에서 훅을 사용하면 에러가 발생한다.
 
+```ts
+function useFetch<T>(
+  url: string,
+  { method, body }: { method: string; body?: XMLHttpRequestBodyInit }
+) {
+  const [result, setResult] = useState<T | undefined>();
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [ok, setOk] = useState<boolean | undefined>();
+  const [status, setStatus] = useState<number | undefined>();
+
+  useEffect(() => {
+    const abortController = new AbortController(); // Info: 비동기 처리 함수 (abort 메소드를 이용하면 signal을 함께 보낸 비동기 요청을 중지할 수 있다.)
+
+    (async () => {
+      setIsLoading(true);
+
+      const response = await fetch(url, {
+        method,
+        body,
+        signal: abortController.signal, // Info: signal 보내~
+      });
+
+      setOk(response.ok);
+      setStatus(response.status);
+
+      if (response.ok) {
+        const apiResult = await response.json();
+        setResult(apiResult);
+      }
+
+      setIsLoading(false);
+    })();
+
+    return () => {
+      abortController.abort(); // Info: 그만~
+    };
+  }, [url, method, body]);
+
+  return { ok, result, isLoading, status };
+}
+```
+
 ### 고차 컴포넌트 (Higher Order Component)
 
 - JS의 함수 특징을 이용하기 때문에 react가 아니어도 쓰일 수 있다.
@@ -336,6 +378,66 @@
   - 부모 컴포넌트가 새롭게 렌더링될 때, 자식 컴포넌트는 props 변경 여부에 관계없이 렌더링이 발생하지만 `React.memo`를 이용하면 렌더링을 하기 전, props를 비교하여 변경되지 않았다면 이전에 기억해 둔 컴포넌트를 반환한다.
 
 - 고차 함수 만들기
+
   - 고차 함수란, `함수를 인수로 받거나 결과로 반환하는 함수`이다.
   - `map`, `forEach`, `reduce`와 같은 고차 함수들이 있다.
-  - react의 고차 컴포넌트도 마찬가지로 `with`로 시작하는 이름을 사용해야 한다.
+
+- 고차 컴포넌트 만들기
+  - 고차 컴포넌트는 컴포넌트 전체를 감쌀 수 있다는 점에서 사용자 정의 훅보다 더 큰 영향력을 컴포넌트에 미칠 수 있다.
+  - react의 고차 컴포넌트도 마찬가지로 `with`로 시작하는 이름을 사용하는 것이 일종의 관습이다.
+  - 고차 컴포넌트는 반드시 컴포넌트를 인수로 받는데, 전달받은 컴포넌트의 props를 건드리는 것을 최소화해야 한다.
+  - 고차 컴포넌트가 반복적으로 존재하면 복잡성이 매우 커지기 때문에 최소한으로 사용하는 것이 좋다.
+
+```tsx
+// App.js
+import TestComponent from "./TestComponent";
+
+const App = () => {
+  return (
+    <h1>
+      기존 텍스트
+      <TestComponent name="테스트 컴포넌트" />
+    </h1>
+  );
+};
+
+export default App;
+
+// TestComponent.js
+import React, { useEffect } from "react";
+import withChildrenTestComponent from "./withChildrenTestComponent";
+
+const TestComponent = (props) => {
+  useEffect(() => {
+    console.log("3. TestComponent useEffect");
+  }, []);
+
+  console.log("2. TestComponent Render");
+  return <div>props.name : {props.name}</div>;
+};
+
+export default withChildrenTestComponent(TestComponent, "TestComponent");
+
+// withChildrenTestComponent.js
+import React, { useEffect } from "react";
+
+const withChildrenTestComponent = (InComponent, InComponentName) => {
+  return (props) => {
+    useEffect(() => {
+      console.log(`4. InComponentName : ${InComponentName} useEffect`);
+    }, []);
+
+    console.log("1. InComponent Render");
+    return <InComponent {...props} />;
+  };
+};
+
+export default withChildrenTestComponent;
+```
+
+- 고차 컴포넌트 관련 참고하면 좋은 [페이지](https://velog.io/@1998yuki0331/%EA%B3%A0%EC%B0%A8-%EC%BB%B4%ED%8F%AC%EB%84%8C%ED%8A%B8-Higher-Order-Components)
+
+### 사용자 정의 훅 vs 고차 컴포넌트
+
+- 단순히 컴포넌트 전반에 걸쳐 동일한 로직으로 값을 제공하거나 특정한 훅의 작동을 취하게 하고 싶다면 `사용자 정의 훅`
+- 공통화된 렌더링 로직을 처리하기 위해선 `고차 컴포넌트`
