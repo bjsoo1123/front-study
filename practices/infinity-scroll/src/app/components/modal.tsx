@@ -85,13 +85,15 @@ export default function Modal(props: OpenProps) {
   }, [open]);
 
   const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchValue(event.target.value);
     if (!event.target.value) {
       setAddresses([]);
+      setPageCount(30);
       return;
     }
     const array = Addresses.filter((address) => address.indexOf(event.target.value) !== -1);
-    setAddresses(array.slice(0, pageCount));
-    setSearchValue(event.target.value);
+    setAddresses(array.slice(0, 30));
+    setPageCount(30);
   };
 
   const debounce = (func: () => void, timeout = 300) => {
