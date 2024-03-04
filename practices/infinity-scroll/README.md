@@ -22,6 +22,9 @@ This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next
 
 ### 서버 실행
 ```bash
+# 경로 확인
+pwd # ~~~/front-study/practices/infinity-scroll
+
 # 패키지 설치
 yarn
 
