@@ -1,7 +1,8 @@
 import { Addresses } from "@/constants/202004";
 import { Dialog, Transition } from "@headlessui/react";
-import { Fragment, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import InfiniteScroll from "./infiniteScroll";
+import { debounce, union } from "lodash";
 
 interface OpenProps {
   open: boolean;
@@ -26,6 +27,8 @@ export default function Modal(props: OpenProps) {
         setBottomSheet(bottomSheetRef.current);
         setTargetSheet(targetSheetRef.current);
       }, 0);
+    } else {
+      updateAddressAndOption([]);
     }
   }, [open]);
   useEffect(() => {
@@ -73,12 +76,60 @@ export default function Modal(props: OpenProps) {
   }, [bottomSheet]);
   // Don't touch this code (END)
 
-  const [filteredAddress, setFilteredAddress] = useState<string[]>(Addresses.slice(0, PAGEPERCOUNT));
-  const [options, setOptions] = useState<string[]>([]);
+  const [filteredAddress, setFilteredAddress] = useState<any>([]);
+  const [options, setOptions] = useState<any>([]);
+  const [query, setQuery] = useState("");
+
+  const fetchAddresses = useCallback(
+    (pageNum: number) => {
+      const target = filteredAddress;
+      const nextPage = pageNum + 1;
+
+      const slicedTarget = target?.slice(
+        (nextPage - 1) * PAGEPERCOUNT,
+        nextPage * PAGEPERCOUNT
+      );
+
+      return slicedTarget;
+    },
+    [filteredAddress]
+  );
+
+  const updateAddressAndOption = (target: any) => {
+    setFilteredAddress(target);
+    setOptions(target.slice(0, PAGEPERCOUNT));
+  };
+
+  const filterByQuery = debounce(async (query: string) => {
+    const target = Addresses.filter((person) => {
+      let isInclude = true;
+      const queries = query.split(" ");
+      queries.forEach((eachQuery) => {
+        if (!person.toLowerCase().includes(eachQuery.toLowerCase())) {
+          isInclude = false;
+        }
+      });
+      return isInclude;
+    });
+    updateAddressAndOption(target);
+  }, 200);
 
   useEffect(() => {
-    setOptions(filteredAddress)
-  }, [filteredAddress])
+    if (query !== "") {
+      filterByQuery(query);
+    } else {
+      updateAddressAndOption([]);
+    }
+
+    return () => {
+      filterByQuery.cancel();
+    };
+  }, [query]);
+
+  const callNextOptions = debounce(async (pageNum: number) => {
+    const newAddresses = await fetchAddresses(pageNum);
+    setOptions((prev: any) => union(prev, newAddresses));
+  }, 200);
 
   return (
     <Transition.Root show={open} as={Fragment}>
@@ -122,9 +173,7 @@ export default function Modal(props: OpenProps) {
                     type="text"
                     className="block w-full bg-thang-f5 p-3.75 rounded-3.5 text-black placeholder:text-thang-9"
                     placeholder="예) 서울시 영등포구 여의도동"
-                    onChange={(event) => {
-                      console.log('==== Query Changed ====');
-                    }}
+                    onChange={(event) => setQuery(event.target.value)}
                   />
                 </div>
                 <div
@@ -136,8 +185,11 @@ export default function Modal(props: OpenProps) {
                 >
                   {filteredAddress.length > 0 ? (
                     <InfiniteScroll
+                      dataLength={filteredAddress.length}
+                      next={(page: number) => callNextOptions(page)}
+                      query={query}
                     >
-                      {options.map((option: string, index: number) => {
+                      {options.map((option: string) => {
                         return (
                           <div key={option}>
                             <div className="relative cursor-default select-none py-3.75 pl-8.75 pr-5 flex justify-between">
@@ -152,7 +204,9 @@ export default function Modal(props: OpenProps) {
                   ) : (
                     <div className="bg-thang-f9 w-full h-full flex items-center justify-center">
                       <p className="text-thang-9 pb-[120px]">
-                        "검색창에 주소를 입력해주세요"
+                        {query === ""
+                          ? "검색창에 주소를 입력해주세요"
+                          : "검색 결과가 없습니다"}
                       </p>
                     </div>
                   )}
