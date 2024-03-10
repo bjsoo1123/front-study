@@ -1,6 +1,6 @@
 import { Addresses } from "@/constants/202004";
 import { Dialog, Transition } from "@headlessui/react";
-import { Fragment, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import InfiniteScroll from "./infiniteScroll";
 
 interface OpenProps {
@@ -27,7 +27,7 @@ export default function Modal(props: OpenProps) {
         setTargetSheet(targetSheetRef.current);
       }, 0);
     }
-    console.log('CCC', bottomSheet?.current, targetSheet?.current);
+    // console.log('CCC', bottomSheet?.current, targetSheet?.current);
   }, [open]);
 
   useEffect(() => {
@@ -75,30 +75,18 @@ export default function Modal(props: OpenProps) {
   }, [bottomSheet]);
   // Don't touch this code (END)
 
+  const infiniteRef = useRef<HTMLDivElement>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+
   const [filteredAddress, setFilteredAddress] = useState<string[]>(Addresses.slice(0, PAGEPERCOUNT));
   const [options, setOptions] = useState<string[]>([]);
   const [page, setPage] = useState<number>(0);
 
-  const handleObserver = (entries: IntersectionObserverEntry[]) => {
-    const target = entries[0];
-    if (target.isIntersecting) {
-      setPage((prevPage) => prevPage + 1);
-    }
-  };
-
   useEffect(() => {
-    const observer = new IntersectionObserver(handleObserver, {
-      threshold: 0,
-    });
-    const observerTarget = document.getElementById("observer");
-    if (observerTarget) {
-      observer.observe(observerTarget);
+    if (!open) {
+      setFilteredAddress([]);
     }
-  }, []);
-
-  // useEffect(() => {
-  //   setOptions(filteredAddress);
-  // }, [filteredAddress])
+  }, [open]);
 
   const handleKeywordChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const resultAddresses = Addresses.filter((address) => {
@@ -109,6 +97,64 @@ export default function Modal(props: OpenProps) {
     setFilteredAddress(resultAddresses);
     setOptions(resultAddresses.slice(0, PAGEPERCOUNT));
   }
+
+  const debounce = (func: () => void, timeout = 300) => {
+    let timer: NodeJS.Timeout;
+    return () => {
+      if (timer) {
+        clearTimeout(timer);
+      }
+      timer = setTimeout(() => {
+        func();
+      }, timeout);
+    };
+  }
+
+  const loadMore = useCallback(() => {
+    try {
+      console.log('loadMore');
+      const items = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'];
+      setFilteredAddress((filteredAddress) => [...filteredAddress, ...items]);
+    } catch (error: any) {
+      console.log(error);
+    }
+  }, [])
+
+  // useEffect(() => {
+  //   const observer = new IntersectionObserver((entries, observer) => {
+  //     const firstEntry = entries[0];
+  //     console.log('OBSERVE', firstEntry.isIntersecting);
+  //     if (firstEntry.isIntersecting && !isLoading) {
+  //       setIsLoading(true);
+  //       loadMore();
+  //       console.log('LOAD MORE');
+  //     }
+  //   },
+  //   { threshold: 1 }
+  // );
+
+  //   if (infiniteRef.current) {
+  //     observer.observe(infiniteRef.current);
+  //   }
+
+  //   // return () => {
+  //   //   if (infiniteRef.current) {
+  //   //     observer.unobserve(infiniteRef.current);
+  //   //   }
+  //   // }
+  // }, [isLoading, loadMore]);
+
+  const observer = new IntersectionObserver((entries, observer) => {
+    const firstEntry = entries[0];
+    console.log('OBSERVE', firstEntry.isIntersecting);
+  }
+);
+
+  if (infiniteRef.current) {
+    observer.observe(infiniteRef.current);
+  }
+
+  // console.log('DDDDD', filteredAddress);
 
   return (
     <Transition.Root show={open} as={Fragment}>
@@ -178,7 +224,7 @@ export default function Modal(props: OpenProps) {
                           </div>
                         );
                       })}
-                      <div id="observer" style={{ height: '10px' }} />
+                      <div ref={infiniteRef} style={{ height: '10px' }}>아아아아아아아</div>
                     </InfiniteScroll>
                   ) : (
                     <div className="bg-thang-f9 w-full h-full flex items-center justify-center">
