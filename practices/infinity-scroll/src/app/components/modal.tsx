@@ -71,49 +71,45 @@ export default function Modal(props: OpenProps) {
   }, [bottomSheet]);
   // Don't touch this code (END)
 
-  //
-  const [searchValue, setSearchValue] = useState<string>('');
-  const [pageCount, setPageCount] = useState<number>(30);
   const [addresses, setAddresses] = useState<string[]>([]);
+  const [searchAddress, setSearchAddress] = useState<string[]>([]);
+  const [pageInfo, setPageInfo] = useState<Record<string, number>>({
+    page: 1,
+    pageRow: 30
+  });
+
+  const handleStateReset = () => {
+    setPageInfo({ page: 1, pageRow: 30 });
+    setSearchAddress([]);
+  };
 
   useEffect(() => {
     if (open) {
-      setSearchValue('');
-      setPageCount(30);
-      setAddresses([]);
+      handleStateReset();
     }
   }, [open]);
 
+  useEffect(() => {
+    const start = pageInfo.page * pageInfo.pageRow;
+    const end = start + pageInfo.pageRow;
+    const newArray = addresses.slice(start, end);
+
+    setSearchAddress(searchAddress.concat(newArray));
+  }, [pageInfo]);
+
   const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchValue(event.target.value);
     if (!event.target.value) {
-      setAddresses([]);
-      setPageCount(30);
+      handleStateReset();
       return;
     }
     const array = Addresses.filter((address) => address.indexOf(event.target.value) !== -1);
-    setAddresses(array.slice(0, 30));
-    setPageCount(30);
+    setAddresses(array);
+    setSearchAddress(array.slice(0, 30));
   };
 
-  const debounce = (func: () => void, timeout = 300) => {
-    let timer: NodeJS.Timeout;
-    return () => {
-      if (timer) {
-        clearTimeout(timer);
-      }
-      timer = setTimeout(() => {
-        func();
-      }, timeout);
-    };
-  }
-
-  const handleNextSearch = debounce(() => {
-    const array = Addresses.filter((address) => address.indexOf(searchValue) !== -1);
-    const newArray = array.slice(pageCount + 1, pageCount + 30);
-    setAddresses(addresses.concat(newArray));
-    setPageCount(pageCount + 30);
-  });
+  const handleNextPage = () => {
+    setPageInfo((prevState) => ({ page: prevState.page + 1 , pageRow: prevState.pageRow }));
+  };
 
   return (
     <Transition.Root show={open} as={Fragment}>
@@ -167,9 +163,9 @@ export default function Modal(props: OpenProps) {
                     transition: "height 0.2s ease-out"
                   }}
                 >
-                  {addresses?.length > 0 ? (
-                    <InfiniteScroll onNextSearch={handleNextSearch}>
-                      {addresses.map((option: string, index: number) => {
+                  {searchAddress?.length > 0 ? (
+                    <InfiniteScroll onNextPage={handleNextPage}>
+                      {searchAddress.map((option: string, index: number) => {
                         return (
                           <div key={option}>
                             <div className="relative cursor-default select-none py-3.75 pl-8.75 pr-5 flex justify-between">
