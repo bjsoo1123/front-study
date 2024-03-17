@@ -1,19 +1,47 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useRef, useEffect } from "react";
 
 export default function Home() {
   const infiniteRef = useRef<HTMLDivElement>(null);
 
-  const observer = new IntersectionObserver((entries, observer) => {
-    const firstEntry = entries[0];
-    console.log('OBSERVE', firstEntry.isIntersecting);
-  }
-);
+  const observer = useRef<IntersectionObserver | null>(null);
 
-  if (infiniteRef.current) {
-    observer.observe(infiniteRef.current);
+  const debounce = (func: () => void, timeout = 300) => {
+    let timer: NodeJS.Timeout;
+    return () => {
+      if (timer) {
+        clearTimeout(timer);
+      }
+      timer = setTimeout(() => {
+        func();
+      }, timeout);
+    };
   }
+
+  // useEffect(() => debounce(() => {
+  //   observer.current = new IntersectionObserver((entries) => {
+  //     const firstEntry = entries[0];
+  //     console.log('OBSERVE', firstEntry.isIntersecting);
+  //   },
+  //   { threshold: 1 }
+  //   )
+  // }), [])
+
+  useEffect(() => {
+    observer.current = new IntersectionObserver((entries) => {
+      const firstEntry = entries[0];
+      console.log('OBSERVE', firstEntry.isIntersecting);
+    },
+    { threshold: 1 }
+    );
+  }, [])
+
+  useEffect(() => {
+    if (infiniteRef.current && observer.current) {
+      observer.current.observe(infiniteRef.current)
+    }
+  }, [infiniteRef])
 
   return (
     <>
